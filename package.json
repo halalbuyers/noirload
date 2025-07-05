@@ -1,19 +1,16 @@
 {
   "name": "video-downloader",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "NoirLoad - Free YouTube video/audio downloader (by Ahmad Noir)",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["youtube", "downloader", "yt-dlp", "express", "noirload"],
+  "author": "Ahtesham AKA Ahmad Noir (@the_ahmad_noir)",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0"
   }
-}
-"scripts": {
-  "start": "node server.js"
 }
