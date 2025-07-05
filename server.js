@@ -52,13 +52,21 @@ app.post('/api/download', (req, res) => {
   const fileName = isAudio ? `audio_${timestamp}.mp3` : `video_${timestamp}.mp4`;
   const outputPath = path.join(__dirname, fileName);
 
-  progressData = { progress: 0, speed: '', size: '' };
+  progressData = { progress: 0, speed: '', size: '' }; // Reset
 
-  let args = isAudio
-    ? ['-x', '--audio-format', 'mp3', '-o', fileName, url]
-    : ['-f', quality === 'best' ? 'bestvideo+bestaudio/best' : `bestvideo[height<=${quality}]+bestaudio/best`, '-o', fileName, '--newline', url];
+  let args;
 
-  const ytdlp = spawn("python3", ["-m", "yt_dlp", ...args]);
+  if (isAudio) {
+    args = ['-m', 'yt_dlp', '-x', '--audio-format', 'mp3', '-o', fileName, url];
+  } else {
+    const formatString = (quality === 'best')
+      ? 'bestvideo+bestaudio/best'
+      : `bestvideo[height<=${quality}]+bestaudio/best`;
+
+    args = ['-m', 'yt_dlp', '-f', formatString, '-o', fileName, '--newline', url];
+  }
+
+  const ytdlp = spawn('python3', args);
 
   ytdlp.stdout.on('data', (data) => {
     const lines = data.toString().split('\n');
@@ -78,6 +86,25 @@ app.post('/api/download', (req, res) => {
   ytdlp.stderr.on('data', (data) => {
     console.error("[yt-dlp ERROR]", data.toString());
   });
+
+  ytdlp.on('close', () => {
+    if (!fs.existsSync(outputPath)) {
+      return res.status(500).send("Download failed. File not found.");
+    }
+
+    const fileStream = fs.createReadStream(outputPath);
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Type", "application/octet-stream");
+
+    fileStream.pipe(res);
+    fileStream.on('close', () => fs.unlink(outputPath, () => {}));
+    fileStream.on('error', (err) => {
+      console.error("File stream error:", err);
+      res.status(500).send("Error sending file");
+    });
+  });
+});
+
 
   ytdlp.on('close', () => {
     const fileStream = fs.createReadStream(outputPath);
