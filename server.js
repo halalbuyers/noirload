@@ -27,7 +27,7 @@ app.get('/progress', (req, res) => {
 
 app.post('/api/formats', (req, res) => {
   const { url } = req.body;
-  const yt = spawn("yt-dlp", ["-F", url]);
+  const ytdlp = spawn("python3", ["-m", "yt_dlp", ...args]);
 
   let output = '';
   yt.stdout.on('data', (data) => output += data.toString());
@@ -58,7 +58,7 @@ app.post('/api/download', (req, res) => {
     ? ['-x', '--audio-format', 'mp3', '-o', fileName, url]
     : ['-f', quality === 'best' ? 'bestvideo+bestaudio/best' : `bestvideo[height<=${quality}]+bestaudio/best`, '-o', fileName, '--newline', url];
 
-  const ytdlp = spawn("yt-dlp", args);
+  const ytdlp = spawn("python3", ["-m", "yt_dlp", ...args]);
 
   ytdlp.stdout.on('data', (data) => {
     const lines = data.toString().split('\n');
