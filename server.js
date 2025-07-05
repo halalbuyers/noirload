@@ -11,6 +11,7 @@ let progressData = { progress: 0, speed: '', size: '' };
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Real-time progress
 app.get('/progress', (req, res) => {
   res.set({
     'Content-Type': 'text/event-stream',
@@ -25,9 +26,12 @@ app.get('/progress', (req, res) => {
   req.on('close', () => clearInterval(interval));
 });
 
+// Get available quality formats
 app.post('/api/formats', (req, res) => {
   const { url } = req.body;
-  const ytdlp = spawn("python3", ["-m", "yt_dlp", ...args]);
+
+  const args = ["-m", "yt_dlp", "-F", url];
+  const yt = spawn("python3", args);
 
   let output = '';
   yt.stdout.on('data', (data) => output += data.toString());
@@ -43,8 +47,13 @@ app.post('/api/formats', (req, res) => {
 
     res.json(resolutions.sort((a, b) => parseInt(a) - parseInt(b)));
   });
+
+  yt.stderr.on('data', (data) => {
+    console.error('[yt-dlp ERROR]', data.toString());
+  });
 });
 
+// Main download endpoint
 app.post('/api/download', (req, res) => {
   const { url, format, quality } = req.body;
   const timestamp = Date.now();
@@ -52,17 +61,15 @@ app.post('/api/download', (req, res) => {
   const fileName = isAudio ? `audio_${timestamp}.mp3` : `video_${timestamp}.mp4`;
   const outputPath = path.join(__dirname, fileName);
 
-  progressData = { progress: 0, speed: '', size: '' }; // Reset
+  progressData = { progress: 0, speed: '', size: '' };
 
   let args;
-
   if (isAudio) {
     args = ['-m', 'yt_dlp', '-x', '--audio-format', 'mp3', '-o', fileName, url];
   } else {
     const formatString = (quality === 'best')
       ? 'bestvideo+bestaudio/best'
       : `bestvideo[height<=${quality}]+bestaudio/best`;
-
     args = ['-m', 'yt_dlp', '-f', formatString, '-o', fileName, '--newline', url];
   }
 
@@ -105,28 +112,6 @@ app.post('/api/download', (req, res) => {
   });
 });
 
-
-  ytdlp.on('close', () => {
-    const fileStream = fs.createReadStream(outputPath);
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-    res.setHeader("Content-Type", "application/octet-stream");
-
-    fileStream.pipe(res);
-
-    fileStream.on('close', () => {
-      fs.unlink(outputPath, (err) => {
-        if (err) console.error("Error deleting file:", err);
-      });
-    });
-
-    fileStream.on('error', (err) => {
-      console.error("File stream error:", err);
-      res.status(500).send("Error sending file");
-    });
-  });
-});
-
 app.listen(PORT, () => {
   console.log(`✅ NoirLoad running at http://localhost:${PORT}`);
 });
-
